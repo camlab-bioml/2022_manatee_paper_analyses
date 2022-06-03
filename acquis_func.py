@@ -103,7 +103,6 @@ def logp_include_no_BF_match(obs_noises, corr_means, is_max, ablate):
                     torch.log(noise_exclude_no_BF_match(obs_noises)) +\
                     torch.log(objagree_exclude_no_BF_match(corr_means)) +\
                     max_exclude_bernoulli().log_prob(is_max)
-    print(f"Full log p(B_k|lambda_k=1) = {logp_B_include.numpy()}")
 
     if ablate == 'cor':
         logp_B_include = logp_B_include - torch.log(objagree_include_no_BF_match(corr_means)) 
@@ -119,8 +118,6 @@ def logp_include_no_BF_match(obs_noises, corr_means, is_max, ablate):
 
     elif ablate != 'none':
         assert False, f"{ablate} is not a valid behaviour to ablate. Possible options: cor, noise, max, none"
-
-    print(f"Ablated {ablate} log p(B_k|lambda_k=1) = {logp_B_include.numpy()}")
 
     p_B = torch.exp(logp_B_include) + torch.exp(logp_B_exclude)
 

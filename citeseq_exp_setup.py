@@ -81,7 +81,6 @@ def get_clustering(adata, proportion, n_neighbors=10, n_pcs=40, resolution=0.8):
     sc.pp.highly_variable_genes(adata, n_top_genes=n_top_genes)
     hvgs = adata.var.highly_variable.tolist()
     print(f"Computed {sum(hvgs)} HVGs.")
-    print(f"Original train dataset is {adata.shape}")
     # Subset adata to HVGs
     adata = adata[:,adata.var.highly_variable]
 
@@ -89,7 +88,6 @@ def get_clustering(adata, proportion, n_neighbors=10, n_pcs=40, resolution=0.8):
     sc.tl.pca(adata, svd_solver='arpack')
     sc.pp.neighbors(adata, n_neighbors=n_neighbors, n_pcs=n_pcs)
 
-    print(f"Now clustering {adata.shape} subsetted train data")
     # Cluster
     sc.tl.leiden(adata, resolution=resolution)
     return adata, hvgs
@@ -104,7 +102,6 @@ def cluster_test(adata, hvgs, n_neighbors=10, n_pcs=40, resolution=0.8):
     sc.tl.pca(adata, svd_solver='arpack')
     sc.pp.neighbors(adata, n_neighbors=n_neighbors, n_pcs=n_pcs)
 
-    print(f"Now clustering {adata.shape} test dataset")
     # Cluster
     sc.tl.leiden(adata, resolution=resolution)
     return adata
@@ -131,7 +128,6 @@ def true_f(proportions, adata, Y):
         # Supervised metrics
         ari.append(metrics.adjusted_rand_score(adata.obs.target.astype(str), clustered.obs.leiden))
         nmi.append(metrics.normalized_mutual_info_score(adata.obs.target.astype(str), clustered.obs.leiden))
-        print(f"ARI on train dataset {adata.shape} is {ari}")
 
         # Unsupervised metrics
         sil.append(metrics.silhouette_score(adata.obsm['X_pca'], clustered.obs.leiden).astype(np.float32))
