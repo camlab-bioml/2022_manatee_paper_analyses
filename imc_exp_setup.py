@@ -13,7 +13,8 @@ positive_coexpression_pairs = [
     ['CD45', 'CD3'],
     ['Vimentin', 'Fibronectin'],
     ['CD19','CD20'],
-    ['panCytokeratin', 'CK5'],
+    ['panCytokeratin', 'CK5']
+]
 
 # This function loads jackson-imc dataset.
 def load_data():
