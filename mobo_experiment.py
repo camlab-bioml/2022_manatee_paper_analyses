@@ -347,7 +347,7 @@ if __name__=="__main__":
     parser = argparse.ArgumentParser(description='Run MOBO experiment.')
     parser.add_argument('--experiment', type=str, 
                         help='Type of experiment. Options: toy, imc, citeseq')
-    parser.add_argument('--logging', type=str, default='wandb',
+    parser.add_argument('--logging', type=str, default='nolog',
                         help='wandb / nolog')
     parser.add_argument('--strategy', nargs='+', default=['manatee'],
                         help='Strategy. Options: manatee, random prob, random loc, botorch, qparego')
