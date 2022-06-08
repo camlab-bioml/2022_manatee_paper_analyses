@@ -6,6 +6,7 @@ MANATEE (Multi-objective bAyesiaN optimizAtion wiTh hEuristic objEctives) is a m
 ## Dependencies
 
 - Python 3.8
+- numpy
 - scipy
 - matplotlib
 - scikit-learn
