@@ -9,11 +9,12 @@ matplotlib = "*"
 torch = "==1.9.0"
 torchvision = "==0.10.0"
 torchaudio = "==0.9.0"
-gpytorch = "*"
+gpytorch = "==1.6.0"
 scikit-learn = "*"
 scanpy = "*"
 leidenalg = "*"
 wandb = "*"
+botorch = "==0.6.1"
 
 [dev-packages]
 
