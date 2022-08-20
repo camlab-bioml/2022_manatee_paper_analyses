@@ -206,10 +206,14 @@ def set_mobo_params(num_tasks, ucb_scal):
                 noise_constraint=gpytorch.constraints.GreaterThan(1e-2), has_global_noise=False)
     model_class = gp.MultitaskGPModel
     mll_class = gpytorch.mlls.ExactMarginalLogLikelihood
-    if ucb_scal:
+    if ucb_scal=="exhaustive":
         acq_fun = acq.mobo_ucb_scalarized
-    else:
+    elif ucb_scal=="mc":
+        acq_fun = acq.mobo_ucb_scalarized_samples
+    elif ucb_scal=="none":
         acq_fun = acq.mobo_acq
+    else:
+        print(f"{ucb_scal} value is invalid. Allowed: exhaustive, mc")
     acq_params = []
     acq_params.append(torch.tensor([1.]).repeat(num_tasks))
     acq_params.append(1.)
@@ -369,7 +373,7 @@ if __name__=="__main__":
                             help='Run cross-val?')
     parser.add_argument('--ablate', type=str, default='none',
                             help='Which behaviour to ablate? Options: cor, noise, max')
-    parser.add_argument('--ucb_scal', type=bool, default=False,
-                            help='Use the alternative acquisition function E[UCB(scal)]?')
+    parser.add_argument('--ucb_scal', type=str, default="none",
+                            help='Compute the AS acquisition function E[UCB(scal)] with MC sampling (mc) or exhaustively (exhaustive)?')
     args = parser.parse_args()
     log_settings(**vars(args))

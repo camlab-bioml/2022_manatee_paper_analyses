@@ -49,14 +49,56 @@ def mc_sample_std(f_pred, p_lambdas, S):
         covar_term = torch.sum(lambda_matrix * torch.triu(f_pred.covariance_matrix, diagonal=1))
         
         estimated_sum = var_term + 2*covar_term
-        if estimated_sum <= 0. and torch.abs(estimated_sum) < 1e-5:
-            estimates[s] = torch.sqrt(F.relu(estimated_sum))
-        else:
-            estimates[s] = torch.sqrt(estimated_sum)
-        assert not torch.isnan(estimates[s]), f"covariance estimate in acq function is negative: {estimated_sum}"
+        assert estimated_sum > -1e-4, f"covariance estimate in acq function is negative and too large: {sum_term}"
+        estimates[s] = torch.sqrt(torch.clamp(estimated_sum, 1e-6, 1e10))
     return torch.mean(estimates)
 
-def mobo_ucb_scalarized(x_probe, model, acq_params, S=500):
+def exhaustive_lambda_vector_probs(p_lambdas):
+    num_tasks = p_lambdas.shape[0]
+    all_lambda_vectors = torch.cartesian_prod(*[torch.tensor([0.,1.]) for i in range(num_tasks)])
+    one_minus_p_lambdas = 1.-p_lambdas
+    arr1 = all_lambda_vectors * p_lambdas.view(1, num_tasks)
+    arr2 = (1.-all_lambda_vectors) * one_minus_p_lambdas.view(1, num_tasks)
+    # these are log probabilities
+    all_lambda_vector_probs = torch.sum(torch.log(arr1+arr2), axis=1)
+    return all_lambda_vectors, all_lambda_vector_probs
+
+def exhaustive_std(f_pred, all_lambda_vectors, all_lambda_vector_probs):
+    num_tasks = all_lambda_vectors.shape[1]
+    expectations = torch.zeros(all_lambda_vectors.shape[0])
+
+    for i, vec in enumerate(all_lambda_vectors):
+        var_term = torch.sum(vec**2 * f_pred.variance, axis=1)
+        
+        covar_indices = torch.triu_indices(num_tasks, num_tasks, offset=1)
+        pair_indices = [[covar_indices[0][i].item(), covar_indices[1][i].item()] for i in range(len(covar_indices[0]))]
+        lambda_matrix = torch.zeros(num_tasks, num_tasks)
+        lambda_pairs = torch.tensor([torch.prod(vec[i]).item() for i in pair_indices])
+        lambda_matrix[covar_indices[0], covar_indices[1]] = lambda_pairs
+        covar_term = torch.sum(lambda_matrix * torch.triu(f_pred.covariance_matrix, diagonal=1))
+        
+        sum_term = var_term + 2*covar_term
+        assert sum_term > -1e-4, f"covariance estimate in acq function is negative and too large: {sum_term}"
+        # clamp to prevent backward pass sqrt issues with 0 or small values
+        expectations[i] = torch.sqrt(torch.clamp(sum_term, 1e-6, 1e10))
+
+    expectation_terms = torch.exp(all_lambda_vector_probs) * expectations
+    return torch.sum(expectation_terms)
+
+def mobo_ucb_scalarized(x_probe, model, acq_params):
+    t = acq_params[1]
+    lambdas = acq_params[0]
+    all_lambda_vectors = acq_params[2]
+    all_lambda_vector_probs = acq_params[3]
+    beta = get_ucb_beta(t)
+    model.eval()
+    # p(f*|x*, f, X)
+    f_pred = model(x_probe)
+    mean = torch.sum(f_pred.mean * lambdas, axis=1)
+    std = exhaustive_std(f_pred, all_lambda_vectors, all_lambda_vector_probs) 
+    return mean + torch.sqrt(beta) * std
+
+def mobo_ucb_scalarized_samples(x_probe, model, acq_params, S=500):
     t = acq_params[1]
     lambdas = acq_params[0]
     beta = get_ucb_beta(t)
@@ -160,6 +202,8 @@ def bounded_x(x, min_x=0, max_x=1):
 
 def optimise_acq(optimizer, acq_f, x_probe, model, acq_params, scheduler):
     if acq_f == mobo_ucb_scalarized:
+        x_probe, losses_acq = optimise_acq_lbfgs(optimizer, acq_f, x_probe, model, acq_params, scheduler)
+    if acq_f == mobo_ucb_scalarized_samples:
         x_probe, losses_acq = optimise_acq_adam(optimizer, acq_f, x_probe, model, acq_params, scheduler)
     if acq_f == mobo_acq:
         x_probe, losses_acq = optimise_acq_lbfgs(optimizer, acq_f, x_probe, model, acq_params, scheduler)
@@ -202,7 +246,7 @@ def optimise_acq_adam(optimizer, acq_f, x_probe, model, acq_params, scheduler, s
         scheduler.step()
         if (i % 50) == 0.:
             print(i, loss.item())
-    
+        
     return x_probe, losses
 
 def sample_to_init_opt(acq_f, x_probes, model, acq_params):
@@ -214,6 +258,8 @@ def sample_to_init_opt(acq_f, x_probes, model, acq_params):
         max_guess = torch.tensor([-1e6])
         for sample in x_probes:
             if acq_f == mobo_ucb_scalarized:
+                acq_f_val = acq_f(sample, model, acq_params)
+            elif acq_f == mobo_ucb_scalarized_samples:
                 acq_f_val = acq_f(sample, model, acq_params, S=10)
             else:
                 acq_f_val = acq_f(sample, model, acq_params)

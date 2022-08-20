@@ -176,6 +176,12 @@ def bayes_opt(experiment,
 
         # Define samples to evalaute acqusition function on
         samples = torch.rand(100, 1)
+
+        if acq_fun == acq.mobo_ucb_scalarized:
+            all_lambda_vectors, all_lambda_vector_probs = acq.exhaustive_lambda_vector_probs(lambda_probs)
+            acq_params.append(all_lambda_vectors)
+            acq_params.append(all_lambda_vector_probs)
+
         # Find initialisation for acqusition function optimisation
         x_probe = acq.sample_to_init_opt(acq_fun, samples, model, acq_params)
         x_probe = torch.logit(x_probe)
@@ -183,6 +189,10 @@ def bayes_opt(experiment,
         x_probe.requires_grad = True
 
         if acq_fun == acq.mobo_ucb_scalarized:
+            optimizer = torch.optim.LBFGS([x_probe], line_search_fn='strong_wolfe')
+            scheduler = None
+
+        elif acq_fun == acq.mobo_ucb_scalarized_samples:
             optimizer = torch.optim.Adam([x_probe])
             scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=300)
 
