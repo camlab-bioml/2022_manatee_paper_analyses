@@ -44,8 +44,9 @@ def mc_sample_std(f_pred, p_lambdas, S):
         covar_indices = torch.triu_indices(num_tasks, num_tasks, offset=1)
         pair_indices = [[covar_indices[0][i].item(), covar_indices[1][i].item()] for i in range(len(covar_indices[0]))]
         lambda_matrix = torch.zeros(num_tasks, num_tasks)
-        lambda_pairs = torch.tensor([torch.prod(lambda_sample[i]).item() for i in pair_indices])
+        lambda_pairs = torch.tensor([torch.prod(lambda_sample[j]).item() for j in pair_indices])
         lambda_matrix[covar_indices[0], covar_indices[1]] = lambda_pairs
+        assert (lambda_matrix == torch.triu(lambda_sample.view(1, -1)*lambda_sample.view(-1, 1), diagonal=1)).all(), "didn't pass assert"
         covar_term = torch.sum(lambda_matrix * torch.triu(f_pred.covariance_matrix, diagonal=1))
         
         estimated_sum = var_term + 2*covar_term
@@ -71,10 +72,11 @@ def exhaustive_std(f_pred, all_lambda_vectors, all_lambda_vector_probs):
         var_term = torch.sum(vec**2 * f_pred.variance, axis=1)
         
         covar_indices = torch.triu_indices(num_tasks, num_tasks, offset=1)
-        pair_indices = [[covar_indices[0][i].item(), covar_indices[1][i].item()] for i in range(len(covar_indices[0]))]
+        pair_indices = [[covar_indices[0][k].item(), covar_indices[1][k].item()] for k in range(len(covar_indices[0]))]
         lambda_matrix = torch.zeros(num_tasks, num_tasks)
-        lambda_pairs = torch.tensor([torch.prod(vec[i]).item() for i in pair_indices])
+        lambda_pairs = torch.tensor([torch.prod(vec[j]).item() for j in pair_indices])
         lambda_matrix[covar_indices[0], covar_indices[1]] = lambda_pairs
+        assert (lambda_matrix == torch.triu(vec.view(1, -1)*vec.view(-1, 1), diagonal=1)).all(), "didn't pass assert"
         covar_term = torch.sum(lambda_matrix * torch.triu(f_pred.covariance_matrix, diagonal=1))
         
         sum_term = var_term + 2*covar_term
