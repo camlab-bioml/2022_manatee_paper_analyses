@@ -25,7 +25,7 @@ MANATEE is run by executing the script `mobo_experiment.py` with corresponding a
 python mobo_experiment.py --experiment imc --x_min 1 --x_max 100
 ```
 
-There are additional optional arguments described in the help message. By default, `mobo_experiment.py` will execute only MANATEE (specifically, the MANATEE-SA version), but the code also supports other methods considered in the paper (MANATEE-AS, RS and RA baselines, qNEHVI with approximate hypervolume computation, qNParEGO). These can be executed by specifying the `--strategy` argument. MANATEE-AS can be executed with the default `--strategy` and `--ucb_scal` set to `exhaustive` for exhaustive computation of the acquisition function (recommended) or "mc" for sampling-based computation.
+There are additional optional arguments described in the help message. By default, `mobo_experiment.py` will execute only MANATEE (specifically, the MANATEE-SA version), but the code also supports other methods considered in the paper (MANATEE-AS, RS and RA baselines, qNEHVI with approximate hypervolume computation, qNParEGO). These can be executed by specifying the `--strategy` argument. MANATEE-AS can be executed with the default `--strategy` and `--ucb_scal` set to `exhaustive` for exhaustive computation of the acquisition function (recommended) or `mc` for sampling-based computation.
 
 The code supports [Weights and Biases](https://wandb.ai) integration (with `--logging` set to `wandb`) which tracks acquisitions, meta-objectives (ARI, NMI), and objective inclusion probabilities and behaviours. These can be also accessed from the dictionary returned by the function `main`, along with the acquisition function values at each step and the final acquired datasets.
 
