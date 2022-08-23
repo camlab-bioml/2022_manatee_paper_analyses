@@ -179,8 +179,12 @@ def bayes_opt(experiment,
 
         if acq_fun == acq.mobo_ucb_scalarized:
             all_lambda_vectors, all_lambda_vector_probs = acq.exhaustive_lambda_vector_probs(lambda_probs)
-            acq_params.append(all_lambda_vectors)
-            acq_params.append(all_lambda_vector_probs)
+            if j == 0:
+                acq_params.append(all_lambda_vectors)
+                acq_params.append(all_lambda_vector_probs)
+            else:
+                acq_params[2] = all_lambda_vectors
+                acq_params[3] = all_lambda_vector_probs
 
         # Find initialisation for acqusition function optimisation
         x_probe = acq.sample_to_init_opt(acq_fun, samples, model, acq_params)
