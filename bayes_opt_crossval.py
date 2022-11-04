@@ -247,17 +247,17 @@ def bayes_opt_crossval(experiment,
             log_dict[f"Solution/Fold {fold}/{wandb_plot_title}"] = x_next_range.item()
             callback(log_dict)
             
-            output_dict[f"model/{strategy}/iter {j}"] = model
-            output_dict[f"likelihood/{strategy}/iter {j}"] = likelihood
+            output_dict[f"model/{strategy}/Fold {fold}/iter {j}"] = model
+            output_dict[f"likelihood/{strategy}/Fold {fold}/iter {j}"] = likelihood
             if strategy == 'manatee':
-                output_dict[f"mean_dx2/{strategy}/iter {j}"] = mean_dx2
-                output_dict[f"mean_dx/{strategy}/iter {j}"] = mean_dx
-                output_dict[f"intertask_corr/{strategy}/iter {j}"] = intertask_corr
+                output_dict[f"mean_dx2/{strategy}/Fold {fold}/iter {j}"] = mean_dx2
+                output_dict[f"mean_dx/{strategy}/Fold {fold}/iter {j}"] = mean_dx
+                output_dict[f"intertask_corr/{strategy}/Fold {fold}/iter {j}"] = intertask_corr
          
-    output_dict[f"train_x/{strategy}"] = train_x
-    output_dict[f"train_y/{strategy}"] = train_y
-    output_dict[f"train_y_original/{strategy}"] = train_y_original
+    output_dict[f"train_x/{strategy}/Fold {fold}"] = train_x
+    output_dict[f"train_y/{strategy}/Fold {fold}"] = train_y
+    output_dict[f"train_y_original/{strategy}/Fold {fold}"] = train_y_original
     if plot:
-        output_dict[f"acq_f_vals_all/{strategy}"] = acq_f_vals_all
+        output_dict[f"acq_f_vals_all/{strategy}/Fold {fold}"] = acq_f_vals_all
             
     return output_dict
