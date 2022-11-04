@@ -89,7 +89,7 @@ def get_clustering(adata, proportion, n_neighbors=10, n_pcs=40, resolution=0.8):
     sc.pp.neighbors(adata, n_neighbors=n_neighbors, n_pcs=n_pcs)
 
     # Cluster
-    sc.tl.leiden(adata, resolution=resolution)
+    sc.tl.leiden(adata, resolution=resolution, random_state=int(np.random.choice(1000, 1)))
     return adata, hvgs
 
 def cluster_test(adata, hvgs, n_neighbors=10, n_pcs=40, resolution=0.8):
@@ -103,7 +103,7 @@ def cluster_test(adata, hvgs, n_neighbors=10, n_pcs=40, resolution=0.8):
     sc.pp.neighbors(adata, n_neighbors=n_neighbors, n_pcs=n_pcs)
 
     # Cluster
-    sc.tl.leiden(adata, resolution=resolution)
+    sc.tl.leiden(adata, resolution=resolution, random_state=int(np.random.choice(1000, 1)))
     return adata
 
 # This function computes the clustering for a given propotion 
