@@ -12,6 +12,12 @@ import gp_derivative as gp_dx
 import plotting as plotting
 from botorch import fit_gpytorch_model
 from botorch.sampling.samplers import SobolQMCNormalSampler
+from usemo.model import GaussianProcess
+import scipy
+from platypus import NSGAII, Problem, Real
+import sobol_seq
+from pygmo import hypervolume
+from usemo.acquisitions import UCB, LCB, TS, ei, pi,compute_beta
 
 # Compute correlation matrix from covariance matrix
 def get_corr(B, v):
@@ -396,56 +402,62 @@ def bayes_opt_botorch(experiment,
         mll_qnehvi, model_qnehvi = gp.initialize_botorch_model(train_x_qnehvi, train_obj_qnehvi, standard_bounds)
         print("Initialised model.")
 
-        # fit the model
-        fit_gpytorch_model(mll_qnehvi, max_retries=20)
-        print("Fitted.")
+        try:
+            # fit the model
+            fit_gpytorch_model(mll_qnehvi, max_retries=20)
+            print("Fitted.")
 
-        # define the qEI and qNEI acquisition modules using a QMC sampler
-        batch_range = (0, -1)
-        qnehvi_sampler = SobolQMCNormalSampler(num_samples=MC_SAMPLES, batch_range=batch_range)
+            # define the qEI and qNEI acquisition modules using a QMC sampler
+            batch_range = (0, -1)
+            qnehvi_sampler = SobolQMCNormalSampler(num_samples=MC_SAMPLES, batch_range=batch_range)
 
-        # optimize acquisition functions and get new observations
-        
-        print("Optimizing...")
-        new_x_qnehvi = gp.optimize_qnehvi_and_get_observation(
-            model_qnehvi, train_x_qnehvi, train_obj_qnehvi, qnehvi_sampler, ref_point, standard_bounds 
-        )
-        print(f"iteration {j}: new point: {new_x_qnehvi}")
+            # optimize acquisition functions and get new observations
+            
+            print("Optimizing...")
+            new_x_qnehvi = gp.optimize_qnehvi_and_get_observation(
+                model_qnehvi, train_x_qnehvi, train_obj_qnehvi, qnehvi_sampler, ref_point, standard_bounds 
+            )
+            print(f"iteration {j}: new point: {new_x_qnehvi}")
 
-        with torch.no_grad():
-            log_dict = {}
-            log_dict["iteration"] = j
+            with torch.no_grad():
+                log_dict = {}
+                log_dict["iteration"] = j
 
-            # Add next location to training set
-            train_x = torch.cat([train_x, new_x_qnehvi])
+                # Add next location to training set
+                train_x = torch.cat([train_x, new_x_qnehvi])
 
-            # Probe next location, f(x*), at the correct place in original x scale
-            x_next_range = new_x_qnehvi * (x_max - x_min) + x_min
+                # Probe next location, f(x*), at the correct place in original x scale
+                x_next_range = new_x_qnehvi * (x_max - x_min) + x_min
 
-            if experiment == 'toy':
-                print(f"Next point in original scale: {x_next_range.item():.3f}")
-                f_next = true_f(x_next_range)
+                if experiment == 'toy':
+                    print(f"Next point in original scale: {x_next_range.item():.3f}")
+                    f_next = true_f(x_next_range)
 
-            elif experiment == 'imc':
-                print(f"Next point in original scale: {x_next_range.item():.3f}")
-                f_next, ari, nmi = true_f(x_next_range, data, adata)
-                log_dict["ARI/botorch"] = ari.item()
-                log_dict["NMI/botorch"] = nmi.item()
+                elif experiment == 'imc':
+                    print(f"Next point in original scale: {x_next_range.item():.3f}")
+                    f_next, ari, nmi = true_f(x_next_range, data, adata)
+                    log_dict["ARI/botorch"] = ari.item()
+                    log_dict["NMI/botorch"] = nmi.item()
 
-            elif experiment == 'citeseq':
-                print(f"Next point in original scale: {x_next_range.item():.3f}")
-                f_next, ari, nmi, _ = true_f(x_next_range, data, adata)
-                log_dict["ARI/botorch"] = ari.item()
-                log_dict["NMI/botorch"] = nmi.item()
+                elif experiment == 'citeseq':
+                    print(f"Next point in original scale: {x_next_range.item():.3f}")
+                    f_next, ari, nmi, _ = true_f(x_next_range, data, adata)
+                    log_dict["ARI/botorch"] = ari.item()
+                    log_dict["NMI/botorch"] = nmi.item()
 
-            else:
-                print(f"{experiment} is an invalid experiment type.")
+                else:
+                    print(f"{experiment} is an invalid experiment type.")
 
-            # Add sampled point to original unscaled dataset
-            train_y_original = torch.cat([train_y_original, f_next])
+                # Add sampled point to original unscaled dataset
+                train_y_original = torch.cat([train_y_original, f_next])
 
-            log_dict["Solution/botorch"] = x_next_range.item()
-            callback(log_dict)
+                log_dict["Solution/botorch"] = x_next_range.item()
+                callback(log_dict)
+
+        except RuntimeError as e:
+        print(f"botorch failed with a RuntimeError\n")
+        print(f"Error: {e}")
+        break
 
     with torch.no_grad():
         # At the end, save sampled datasets
@@ -488,56 +500,62 @@ def bayes_opt_qparego(experiment,
         mll_qparego, model_qparego = gp.initialize_botorch_model(train_x_qparego, train_obj_qparego, standard_bounds)
         print("Initialised model.")
 
-        # fit the model
-        fit_gpytorch_model(mll_qparego, max_retries=20)
-        print("Fitted.")
+        try:
+            # fit the model
+            fit_gpytorch_model(mll_qparego, max_retries=20)
+            print("Fitted.")
 
-        # define the qEI and qNEI acquisition modules using a QMC sampler
-        batch_range = (0, -1)
-        qparego_sampler = SobolQMCNormalSampler(num_samples=MC_SAMPLES, batch_range=batch_range)
+            # define the qEI and qNEI acquisition modules using a QMC sampler
+            batch_range = (0, -1)
+            qparego_sampler = SobolQMCNormalSampler(num_samples=MC_SAMPLES, batch_range=batch_range)
 
-        # optimize acquisition functions and get new observations
-        
-        print("Optimizing...")
-        new_x_qparego = gp.optimize_qnparego_and_get_observation(
-            model_qparego, train_x_qparego, train_obj_qparego, qparego_sampler, standard_bounds 
-        )
-        print(f"iteration {j}: new point: {new_x_qparego}")
+            # optimize acquisition functions and get new observations
+            
+            print("Optimizing...")
+            new_x_qparego = gp.optimize_qnparego_and_get_observation(
+                model_qparego, train_x_qparego, train_obj_qparego, qparego_sampler, standard_bounds 
+            )
+            print(f"iteration {j}: new point: {new_x_qparego}")
 
-        with torch.no_grad():
-            log_dict = {}
-            log_dict["iteration"] = j
+            with torch.no_grad():
+                log_dict = {}
+                log_dict["iteration"] = j
 
-            # Add next location to training set
-            train_x = torch.cat([train_x, new_x_qparego])
+                # Add next location to training set
+                train_x = torch.cat([train_x, new_x_qparego])
 
-            # Probe next location, f(x*), at the correct place in original x scale
-            x_next_range = new_x_qparego * (x_max - x_min) + x_min
+                # Probe next location, f(x*), at the correct place in original x scale
+                x_next_range = new_x_qparego * (x_max - x_min) + x_min
 
-            if experiment == 'toy':
-                print(f"Next point in original scale: {x_next_range.item():.3f}")
-                f_next = true_f(x_next_range)
+                if experiment == 'toy':
+                    print(f"Next point in original scale: {x_next_range.item():.3f}")
+                    f_next = true_f(x_next_range)
 
-            elif experiment == 'imc':
-                print(f"Next point in original scale: {x_next_range.item():.3f}")
-                f_next, ari, nmi = true_f(x_next_range, data, adata)
-                log_dict["ARI/qparego"] = ari.item()
-                log_dict["NMI/qparego"] = nmi.item()
+                elif experiment == 'imc':
+                    print(f"Next point in original scale: {x_next_range.item():.3f}")
+                    f_next, ari, nmi = true_f(x_next_range, data, adata)
+                    log_dict["ARI/qparego"] = ari.item()
+                    log_dict["NMI/qparego"] = nmi.item()
 
-            elif experiment == 'citeseq':
-                print(f"Next point in original scale: {x_next_range.item():.3f}")
-                f_next, ari, nmi, _ = true_f(x_next_range, data, adata)
-                log_dict["ARI/qparego"] = ari.item()
-                log_dict["NMI/qparego"] = nmi.item()
+                elif experiment == 'citeseq':
+                    print(f"Next point in original scale: {x_next_range.item():.3f}")
+                    f_next, ari, nmi, _ = true_f(x_next_range, data, adata)
+                    log_dict["ARI/qparego"] = ari.item()
+                    log_dict["NMI/qparego"] = nmi.item()
 
-            else:
-                print(f"{experiment} is an invalid experiment type.")
+                else:
+                    print(f"{experiment} is an invalid experiment type.")
 
-            # Add sampled point to original unscaled dataset
-            train_y_original = torch.cat([train_y_original, f_next])
+                # Add sampled point to original unscaled dataset
+                train_y_original = torch.cat([train_y_original, f_next])
 
-            log_dict["Solution/qparego"] = x_next_range.item()
-            callback(log_dict)
+                log_dict["Solution/qparego"] = x_next_range.item()
+                callback(log_dict)
+
+        except RuntimeError as e:
+            print(f"qparego failed with a RuntimeError\n")
+            print(f"Error: {e}")
+            break
             
     with torch.no_grad():
         # At the end, save sampled datasets
@@ -545,4 +563,133 @@ def bayes_opt_qparego(experiment,
         output_dict["train_y/qparego"] = train_y
         output_dict["train_y_original/qparego"] = train_y_original
             
+    return output_dict
+
+# Run usemo
+# Adapted from https://github.com/belakaria/USeMO/blob/master/main.py
+def bayes_opt_usemo(experiment, 
+                        callback, 
+                        optimise_iter, 
+                        train_x, 
+                        train_y, 
+                        data, 
+                        adata, 
+                        true_f, 
+                        x_min, 
+                        x_max):
+
+    num_orig_train_pts = train_x.shape[0]
+    train_y_original = train_y.detach().clone()
+    num_tasks = train_y.shape[1]
+    output_dict = {}
+
+    referencePoint = [1e5]*num_tasks
+    bound=[0,1] 
+    d = train_x.shape[1]
+    Fun_bounds = [bound]*d
+    grid = sobol_seq.i4_sobol_generate(d,1000,np.random.randint(0,1000))
+    design_index = np.random.randint(0, grid.shape[0])
+
+    acquisation=TS
+    batch_size=1
+
+    GPs=[]
+    for i in range(num_tasks):
+        GPs.append(GaussianProcess(d))
+
+    for j in range(optimise_iter):
+        print(f"Iteration {j}.")
+
+        train_x_usemo = np.array(train_x.detach().clone())
+        train_y_usemo = np.array(train_y_original)
+
+        if j == 0:
+            for k in range(num_orig_train_pts):
+                for i in range(num_tasks):
+                    GPs[i].addSample(train_x_usemo[k,:], -train_y_usemo[k,i])
+        else:
+            for i in range(num_tasks):
+                GPs[i].addSample(train_x_usemo[-1,:], -train_y_usemo[-1,i])
+
+        for i in range(num_tasks):   
+            GPs[i].fitModel()
+
+        beta=compute_beta(j+1,d)
+        cheap_pareto_set=[]
+
+        def CMO(x):
+            x=np.asarray(x)
+            return [acquisation(x,beta,GPs[i])[0] for i in range(len(GPs))]
+
+        problem = Problem(d, num_tasks)
+        problem.types[:] = Real(bound[0], bound[1])
+        problem.function = CMO
+        algorithm = NSGAII(problem)
+        algorithm.run(2500)
+        cheap_pareto_set=[solution.variables for solution in algorithm.result]
+        cheap_pareto_set_unique=[]
+        for i in range(len(cheap_pareto_set)):
+            if (any((cheap_pareto_set[i] == x).all() for x in GPs[0].xValues))==False:
+                cheap_pareto_set_unique.append(cheap_pareto_set[i])
+
+        UBs=[[GPs[i].getPrediction(np.asarray(np.asarray(x)))[0][0]+beta*GPs[i].getPrediction(np.asarray(np.asarray(x)))[1][0] for i in range(len(GPs))] for x in cheap_pareto_set_unique]
+        LBs=[[GPs[i].getPrediction(np.asarray(np.asarray(x)))[0][0]-beta*GPs[i].getPrediction(np.asarray(np.asarray(x)))[1][0] for i in range(len(GPs))] for x in cheap_pareto_set_unique]
+        uncertaities= [scipy.spatial.Rectangle(UBs[i], LBs[i]).volume() for i in range(len(cheap_pareto_set_unique))]
+
+        batch_indecies=np.argsort(uncertaities)[::-1][:batch_size]
+        batch=[cheap_pareto_set_unique[i] for i in batch_indecies]
+
+        for x_best in batch:
+           new_x_usemo = torch.tensor([x_best]) 
+
+        print(f"iteration {j}: new point: {new_x_usemo}")
+
+        with torch.no_grad():
+            log_dict = {}
+            log_dict["iteration"] = j
+
+            # Add next location to training set
+            train_x = torch.cat([train_x, new_x_usemo])
+
+            # Probe next location, f(x*), at the correct place in original x scale
+            x_next_range = new_x_usemo * (x_max - x_min) + x_min
+
+            if experiment == 'toy':
+                print(f"Next point in original scale: {x_next_range.item():.3f}")
+                f_next = true_f(x_next_range)
+
+            elif experiment == 'sklearn':
+                print(f"Next point in original scale: {x_next_range.item():.3f}")
+                f_next, ari, nmi = true_f(x_next_range, data, adata.copy())
+                log_dict["ARI/usemo"] = ari.item()
+                log_dict["NMI/usemo"] = nmi.item()
+
+            elif experiment == 'imc':
+                print(f"Next point in original scale: {x_next_range.item():.3f}")
+                f_next, ari, nmi = true_f(x_next_range, data, adata)
+                log_dict["ARI/usemo"] = ari.item()
+                log_dict["NMI/usemo"] = nmi.item()
+
+            elif experiment == 'citeseq':
+                print(f"Next point in original scale: {x_next_range.item():.3f}")
+                f_next, ari, nmi, _ = true_f(x_next_range, data, adata)
+                log_dict["ARI/usemo"] = ari.item()
+                log_dict["NMI/usemo"] = nmi.item()
+
+            else:
+                print(f"{experiment} is an invalid experiment type.")
+
+            # Add sampled point to original unscaled dataset
+            train_y_original = torch.cat([train_y_original, f_next])
+
+            log_dict["Solution/usemo"] = x_next_range.item()
+            callback(log_dict)
+
+    with torch.no_grad():
+        # At the end, save sampled datasets
+        output_dict["train_x/usemo"] = train_x
+        output_dict["train_y/usemo"] = train_y
+        output_dict["train_y_original/usemo"] = train_y_original
+        output_dict["model/usemo"] = GPs
+
     return output_dict
