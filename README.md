@@ -16,6 +16,11 @@ MANATEE (Multi-objective bAyesiaN optimizAtion wiTh hEuristic objEctives) is a m
 - scanpy
 - leidenalg
 - wandb
+- sobol-seq
+- pygmo
+- platypus-opt
+
+USeMO should be available in the virtual environment under the name `usemo`.
 
 ## Quickstart 
 
