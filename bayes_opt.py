@@ -455,9 +455,9 @@ def bayes_opt_botorch(experiment,
                 callback(log_dict)
 
         except RuntimeError as e:
-        print(f"botorch failed with a RuntimeError\n")
-        print(f"Error: {e}")
-        break
+            print(f"botorch failed with a RuntimeError\n")
+            print(f"Error: {e}")
+            break
 
     with torch.no_grad():
         # At the end, save sampled datasets
