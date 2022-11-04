@@ -15,6 +15,9 @@ scanpy = "*"
 leidenalg = "*"
 wandb = "*"
 botorch = "==0.6.1"
+sobol-seq = "*"
+pygmo = "*"
+platypus-opt = "*"
 
 [dev-packages]
 
