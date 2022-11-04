@@ -75,7 +75,6 @@ def log_settings(experiment, logging, strategy, x_min, x_max, num_train_pts, opt
               # Track hyperparameters and run metadata
               config=config)
         callback = wandb.log
-        run_name = wandb.run.name
     elif logging == "nolog":
         callback = Clb.CallbackClass(strategy, log_titles)
 
@@ -83,19 +82,39 @@ def log_settings(experiment, logging, strategy, x_min, x_max, num_train_pts, opt
     success = False
     if experiment == "imc":
         if crossval: 
+            dict_list_all_folds = []
+            success_flags_all_folds = []
             for fold in range(5):        
                 # Split
                 data1_train, data2_train, data1_test, data2_test = imc_setup.split_data(data1, data2)
                 mobo_output_dict, success = main_crossval(data1_train, data2_train, data1_test, data2_test, fold, experiment, callback, strategy, x_min, x_max, num_train_pts, optimise_iter, plot, ablate, ucb_scal)
+                dict_list_all_folds.append(mobo_output_dict)
+                success_flags_all_folds.append(success)
+
+            mobo_output_dict = {k:v for d in dict_list_all_folds for k,v in d.items()} 
+            if np.all(success_flags_all_folds):
+                success = True
+            else:
+                success = False
         else:
             mobo_output_dict, success = main(data1, data2, experiment, callback, strategy, x_min, x_max, num_train_pts, optimise_iter, plot, ablate, ucb_scal)
 
     elif experiment == "citeseq":
         if crossval:
+            dict_list_all_folds = []
+            success_flags_all_folds = []
             for fold in range(5):
                 # Split
                 data1_train, data2_train, data1_test, data2_test = citeseq_setup.split_data(data1, data2)
                 mobo_output_dict, success = main_crossval(data1_train, data2_train, data1_test, data2_test, fold, experiment, callback, strategy, x_min, x_max, num_train_pts, optimise_iter, plot, ablate, ucb_scal)
+                dict_list_all_folds.append(mobo_output_dict)
+                success_flags_all_folds.append(success)
+
+             mobo_output_dict = {k:v for d in dict_list_all_folds for k,v in d.items()} 
+            if np.all(success_flags_all_folds):
+                success = True
+            else:
+                success = False
         else: 
             mobo_output_dict, success = main(data1, data2, experiment, callback, strategy, x_min, x_max, num_train_pts, optimise_iter, plot, ablate, ucb_scal)
 
@@ -302,6 +321,20 @@ def run_experiment(experiment, callback, strategy, optimise_iter, train_x, train
                     x_max,
                     labels,
                     plot) 
+
+    elif strategy=='usemo':
+        print(f"Running {strategy}.\n")
+        return bo.bayes_opt_usemo(
+                    experiment,
+                    callback,
+                    optimise_iter,
+                    train_x,
+                    train_y,
+                    data1,
+                    data2,
+                    true_f,
+                    x_min,
+                    x_max)
     else: 
         print(f"Invalid strategy: {strategy}")
 
@@ -354,7 +387,7 @@ if __name__=="__main__":
     parser.add_argument('--logging', type=str, default='nolog',
                         help='wandb / nolog')
     parser.add_argument('--strategy', nargs='+', default=['manatee'],
-                        help='Strategy. Options: manatee, random prob, random loc, botorch, qparego')
+                        help='Strategy. Options: manatee, random prob, random loc, botorch, qparego, usemo')
     parser.add_argument('--x_min', type=float, 
                         help='Min range of x')
     parser.add_argument('--x_max', type=float, 
