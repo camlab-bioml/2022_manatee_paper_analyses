@@ -110,7 +110,7 @@ def log_settings(experiment, logging, strategy, x_min, x_max, num_train_pts, opt
                 dict_list_all_folds.append(mobo_output_dict)
                 success_flags_all_folds.append(success)
 
-             mobo_output_dict = {k:v for d in dict_list_all_folds for k,v in d.items()} 
+            mobo_output_dict = {k:v for d in dict_list_all_folds for k,v in d.items()} 
             if np.all(success_flags_all_folds):
                 success = True
             else:
